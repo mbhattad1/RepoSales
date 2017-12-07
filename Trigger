@@ -1,4 +1,4 @@
-trigger renewalEntitlementReassignmentTrigger on Entitlement (after insert){
+trigger renewalEntitlementReassignmentTrigger on Entitlement (after insert, after update){
     
     list<id> accountIdList = new List<Id>();
     list<Device__c> deviceInsertList = new List<Device__c>();
