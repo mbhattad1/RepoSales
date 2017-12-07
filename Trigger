@@ -1,0 +1,67 @@
+trigger renewalEntitlementReassignmentTrigger on Entitlement (after insert){
+    
+    list<id> accountIdList = new List<Id>();
+    list<Device__c> deviceInsertList = new List<Device__c>();
+    list<Device__c> relatedDevices = new list<Device__c>();
+    
+    for(Entitlement et: Trigger.New){
+        if(et.F_Related_Order_Type__c == 'Renewal'){
+            accountIdList.add(et.AccountId);    
+        }
+    }
+    
+    if(accountIdList.size()>0){
+        relatedDevices = [select id, Asset__c, Entitlement__c, Entitlement__r.Type, F_Related_Account_Id__c, Asset__r.Product2Id from Device__c where F_Related_Account_Id__c IN: accountIdList];    
+    }
+    
+    if(relatedDevices.size()>0){
+        for(Entitlement et: Trigger.New){
+            if(et.F_Related_Order_Type__c == 'Renewal'){
+                for(Device__c d : relatedDevices){
+                    if(et.F_Related_Product__c != Null && et.F_Related_Product__c != ''){ 
+                        if(et.F_Product_Family__c == 'SpectraGuard Online' || et.F_Product_Family__c == 'Cloud Service'){//This loop reassigns the devices for Bundled Cloud Services Entitlements
+                            if(et.Type == 'AMC'){
+                                if(et.F_Related_Product__c == d.Asset__r.Product2Id){
+                                    Device__c newD = new Device__c();
+                                        newD.Asset__c = d.Asset__c ;
+                                        newD.Entitlement__c = et.id;
+                                        newD.Start_Date__c = et.StartDate;
+                                        newD.End_Date__c = et.EndDate;
+                                    deviceInsertList.add(newD);
+                                }
+                            }
+                        }
+                        if(et.F_Product_Family__c == 'Support & Maintenance'){//This loop reassigns the devices for the WIPS entitlements
+                            if(et.F_Related_Product__c == d.Asset__r.Product2Id){
+                                Device__c newD = new Device__c();
+                                    newD.Asset__c = d.Asset__c ;
+                                    newD.Entitlement__c = et.id;
+                                    newD.Start_Date__c = et.StartDate;
+                                    newD.End_Date__c = et.EndDate;
+                                deviceInsertList.add(newD);
+                            }
+                        }
+                    }
+                    else if(et.F_Related_Product__c == Null || et.F_Related_Product__c == ''){//This loop reassigns the devices for the Un Bundled Clound services entitlements
+                        if(et.F_Product_Family__c == 'SpectraGuard Online' || et.F_Product_Family__c == 'Cloud Service'){
+                            if(et.Type == 'AMC'){
+                                if(d.Entitlement__r.Type == et.Type){
+                                    Device__c newD = new Device__c();
+                                        newD.Asset__c = d.Asset__c ;
+                                        newD.Entitlement__c = et.id;
+                                        newD.Start_Date__c = et.StartDate;
+                                        newD.End_Date__c = et.EndDate;
+                                    deviceInsertList.add(newD);    
+                                }
+                            }
+                        }    
+                    }
+                }    
+            }
+        }    
+    }   
+    if(deviceInsertList.size()>0){
+        insert deviceInsertList;
+    } 
+
+}
